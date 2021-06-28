@@ -1,4 +1,4 @@
-from nltk import WordNetLemmatizer, word_tokenize, pos_tag, RegexpParser, RecursiveDescentParser
+from nltk import WordNetLemmatizer, word_tokenize, pos_tag, RegexpParser
 from nltk.corpus import wordnet
 from nltk.corpus.reader.wordnet import WordNetError
 
@@ -90,6 +90,7 @@ def identifyActorSynonyms(stories):
 
 
 def getUseCasesFromStories(stories):
+    actorsWithUseCases = list()
     exclusionRule = ["JJ", "JJR", "JJS", "RB", "RBR", "RBS", "PRP$", "DT", ",", "."]
     grammarRule = """
         S: {<PRP><ACTION><BENEFIT>},
@@ -123,6 +124,7 @@ def getUseCasesFromStories(stories):
 
         firstAction = []
 
+# only the first action should be taken
         for subtree in results.subtrees():
             if subtree.label() == 'ACTION':
                 print(subtree)
@@ -130,11 +132,21 @@ def getUseCasesFromStories(stories):
                     firstAction.append(leave[0])
 
         firstAction[0] = firstAction[0].capitalize()
-        print({"actor": story["actor"], "useCase": " ".join(firstAction)})
+
+        actorInList = False
+
+        for sublist in actorsWithUseCases:
+            if sublist["actor"] == story["actor"]:
+                sublist["useCases"].append(" ".join(firstAction))
+                actorInList = True
+
+        if not actorInList:
+            actorsWithUseCases.append({"actor": story["actor"], "useCases": [" ".join(firstAction)]})
+
+    return actorsWithUseCases
 
 
 def analyseForUseCases(order):
     cleanedActors = cleanActors(order["userStories"])
     cleanedStories = identifyActorSynonyms(cleanedActors)
-    getUseCasesFromStories(cleanedStories)
-    return True
+    return getUseCasesFromStories(cleanedStories)
