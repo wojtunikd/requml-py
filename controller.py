@@ -4,6 +4,8 @@ import random
 import string
 
 from bson.objectid import ObjectId
+from bson.errors import InvalidId
+
 from pymongo import MongoClient
 
 cluster = MongoClient(os.getenv("MONGODB_CONNECTION"))
@@ -34,13 +36,16 @@ def getAndVerifyUniqueUCParameter():
 
 
 def getOrder(orderId):
-    return requests.find_one({"_id": ObjectId(orderId)})
+    try:
+        return requests.find_one({"_id": ObjectId(orderId)})
+    except InvalidId:
+        return None
 
 
 def updateActorUseCases(orderId, useCases):
     ucParam = getAndVerifyUniqueUCParameter()
     requests.update_one({"_id": ObjectId(orderId)}, {"$set": {"actorsWithUseCases": json.dumps(useCases), "completed": True, "ucParam": ucParam}})
-    return
+    return {"useCasesParam": ucParam}
 
 
 def getOrderUseCases(orderId):
@@ -52,4 +57,9 @@ def getOrderUseCases(orderId):
     except KeyError:
         print("No order use cases yet.")
 
-    return orderUseCases
+    return list(orderUseCases)
+
+
+def getAllOrders():
+    orders = requests.find()
+    return list(orders)
