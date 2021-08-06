@@ -63,3 +63,14 @@ def getOrderUseCases(orderId):
 def getAllOrders():
     orders = requests.find()
     return list(orders)
+
+
+def deleteAnOrder(orderId):
+    try:
+        return requests.delete_one({"_id": ObjectId(orderId)})
+    except InvalidId:
+        return None
+
+
+def deleteAllOrders():
+    return requests.delete_many({})
