@@ -19,7 +19,7 @@ def verifyPassword(adminPassword, passwordProvided):
 
 
 def generateJWT():
-    return jwt.encode({"exp": datetime.datetime.now() + datetime.timedelta(hours=3)}, os.getenv("JWT_SECRET"), algorithm="HS256")
+    return jwt.encode({"exp": datetime.datetime.utcnow() + datetime.timedelta(hours=3)}, os.getenv("JWT_SECRET"), algorithm="HS256")
 
 
 def decodeJWT(token):
