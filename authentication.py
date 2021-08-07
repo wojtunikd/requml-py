@@ -20,7 +20,7 @@ def verifyPassword(adminPassword, passwordProvided):
 
 def generateJWT():
     expiryDate = (datetime.datetime.now() + datetime.timedelta(hours=3)).strftime("%Y-%m-%d %H:%M:%S")
-    return jwt.encode({"expiry": expiryDate}, os.getenv("JWT_SECRET"), algorithm="HS256")
+    return jwt.encode({"expiry": expiryDate}, str(os.getenv("JWT_SECRET")), algorithm="HS256")
 
 
 def decodeAndVerifyJWT(token):
