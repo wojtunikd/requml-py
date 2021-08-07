@@ -25,12 +25,10 @@ def generateJWT():
 
 def decodeAndVerifyJWT(token):
     try:
-        decodedToken = jwt.decode(token, os.getenv("JWT_SECRET"), algorithms=["HS256"])
+        decodedToken = jwt.decode(token, str(os.getenv("JWT_SECRET")), algorithms=["HS256"])
     except Exception as error:
         print(error)
         raise Exception("Error while decoding the JSON web token")
-
-    print(decodedToken)
 
     expiryDateTime = datetime.datetime.strptime(decodedToken["expiry"], "%Y-%m-%d %H:%M:%S")
     now = datetime.datetime.now()
