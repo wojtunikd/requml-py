@@ -19,9 +19,23 @@ def verifyPassword(adminPassword, passwordProvided):
 
 
 def generateJWT():
-    return jwt.encode({"exp": datetime.datetime.utcnow() + datetime.timedelta(hours=3)}, os.getenv("JWT_SECRET"), algorithm="HS256")
+    expiryDate = (datetime.datetime.now() + datetime.timedelta(hours=3)).strftime("%Y-%m-%d %H:%M:%S")
+    return jwt.encode({"expiry": expiryDate}, os.getenv("JWT_SECRET"), algorithm="HS256")
 
 
-def decodeJWT(token):
-    return jwt.decode(token, os.getenv("JWT_SECRET"), algorithms=["HS256"])
+def decodeAndVerifyJWT(token):
+    try:
+        decodedToken = jwt.decode(token, os.getenv("JWT_SECRET"), algorithms=["HS256"])
+    except Exception as error:
+        print(error)
+        raise Exception("Error while decoding the JSON web token")
 
+    print(decodedToken)
+
+    expiryDateTime = datetime.datetime.strptime(decodedToken["expiry"], "%Y-%m-%d %H:%M:%S")
+    now = datetime.datetime.now()
+
+    if expiryDateTime > now:
+        return True
+    else:
+        raise Exception("The token provided is expired. Please log in again.")

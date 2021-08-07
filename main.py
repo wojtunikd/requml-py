@@ -2,11 +2,12 @@ from dotenv import load_dotenv
 from functools import wraps
 from flask import Flask, Response, request
 from flask_restful import Api, Resource
+import datetime
 
 from bson.json_util import dumps
 
 from controller import getOrder, updateActorUseCases, getOrderUseCases, getAllOrders, deleteAllOrders, deleteAnOrder
-from authentication import getAdmin, verifyPassword, generateJWT, decodeJWT
+from authentication import getAdmin, verifyPassword, generateJWT, decodeAndVerifyJWT
 from Analysis.use_cases import analyseForUseCases
 
 load_dotenv()
@@ -29,7 +30,7 @@ def authenticateJWT(f):
             return {"message": "Please provide a valid token to proceed"}, 401
 
         try:
-            decodeJWT(token)
+            decodeAndVerifyJWT(token)
         except Exception as error:
             print(error)
             return {"message": "The token provided is invalid. Please log in again"}, 401
