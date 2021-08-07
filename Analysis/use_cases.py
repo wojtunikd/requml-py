@@ -195,7 +195,6 @@ def getUseCasesFromStories(stories):
 
 
 def analyseForUseCases(order):
-    print(order)
     cleanedActors = cleanActors(order["userStories"])
     cleanedStories = identifyActorSynonyms(cleanedActors)
     return getUseCasesFromStories(cleanedStories)
