@@ -24,7 +24,9 @@ def authenticateJWT(f):
         if "Authorization" in request.headers:
             # The token is provided in the following format: Bearer Token
             # To obtain the token only, the string needs to be split on whitespace and the second value is selected
-            token = request.headers.get("Authorization").split()[1]
+            token = request.headers.get("Authorization")
+            print(token)
+            print(token.split())
 
         if token is None:
             return {"message": "Please provide a valid token to proceed"}, 401
