@@ -2,7 +2,6 @@ from dotenv import load_dotenv
 from functools import wraps
 from flask import Flask, Response, request
 from flask_restful import Api, Resource
-import datetime
 
 from bson.json_util import dumps
 
@@ -24,9 +23,12 @@ def authenticateJWT(f):
         if "Authorization" in request.headers:
             # The token is provided in the following format: Bearer Token
             # To obtain the token only, the string needs to be split on whitespace and the second value is selected
-            token = request.headers.get("Authorization")
-            print(token)
-            print(token.split())
+            tokenValues = request.headers.get("Authorization").split()
+
+            if len(tokenValues) < 2:
+                return {"message": "Please provide a valid token to proceed"}, 401
+
+            token = tokenValues[1]
 
         if token is None:
             return {"message": "Please provide a valid token to proceed"}, 401
@@ -128,9 +130,10 @@ class DeleteAllOrders(Resource):
 
 class Login(Resource):
     def post(self):
-        adminAccount = getAdmin(request.form.get("email"))
-        if verifyPassword(adminAccount["password"], request.form.get("password")):
-            return {"token": generateJWT()}, 200
+        adminAccount = getAdmin(request.json["email"])
+        if verifyPassword(adminAccount["password"], request.json["password"]):
+            generatedToken = generateJWT()
+            return {"token": generatedToken}, 200
         else:
             return {"message": "Authentication failed"}, 401
 
