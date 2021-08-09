@@ -7,7 +7,9 @@ from bson.json_util import dumps
 
 from controller import getOrder, updateActorUseCases, getOrderUseCases, getAllOrders, deleteAllOrders, deleteAnOrder
 from authentication import getAdmin, verifyPassword, generateJWT, decodeAndVerifyJWT
-from Analysis.use_cases import analyseForUseCases
+
+from Analysis.use_cases import conductUseCasesAnalysis
+from Analysis.classes import conductClassesAnalysis
 
 load_dotenv()
 
@@ -44,30 +46,33 @@ def authenticateJWT(f):
     return decorator
 
 
-def verifyOrder(order):
+def conductOrderAnalysis(order, message):
+    useCaseAnalysis = conductUseCasesAnalysis(order)
+    conductClassesAnalysis(useCaseAnalysis["storiesOnly"])
+    ucUpdate = updateActorUseCases(order["_id"], useCaseAnalysis["actorsWithUseCases"])
+    return {"message": message, "ucParam": ucUpdate["useCasesParam"]}, 200
+
+
+def initiateOrder(order):
     if order is None:
         return {"message": "The order has not been found"}, 404
     elif order["completed"]:
         return {"message": "The order has already been analysed"}, 403
     else:
-        actorsWithUseCases = analyseForUseCases(order)
-        ucUpdate = updateActorUseCases(order["_id"], actorsWithUseCases)
-        return {"message": "Order initiated", "ucParam": ucUpdate["useCasesParam"]}, 200
+        return conductOrderAnalysis(order, "Analysis complete.")
 
 
 def rerunAnalysis(order):
     if order is None:
         return {"message": "The order has not been found"}, 404
     else:
-        actorsWithUseCases = analyseForUseCases(order)
-        ucUpdate = updateActorUseCases(order["_id"], actorsWithUseCases)
-        return {"message": "Analysis has been rerun", "ucParam": ucUpdate["useCasesParam"]}, 200
+        return conductOrderAnalysis(order, "Analysis has been rerun successfully.")
 
 
 class InitiateAnalysis(Resource):
     @authenticateJWT
     def post(self, orderId):
-        return verifyOrder(getOrder(orderId))
+        return initiateOrder(getOrder(orderId))
 
 
 class RerunAnalysis(Resource):
@@ -140,6 +145,7 @@ class Login(Resource):
 
 @app.errorhandler(Exception)
 def serverError(error):
+    print(error)
     return {"message": "Error while processing your request. Please try again!"}, 500
 
 

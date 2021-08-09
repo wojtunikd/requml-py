@@ -1,11 +1,18 @@
-from nltk import WordNetLemmatizer, word_tokenize, pos_tag, RegexpParser
+from Analysis.preprocessing import removePunctuation
+
+from nltk import WordNetLemmatizer, word_tokenize, pos_tag
 from nltk.corpus import wordnet
 from nltk.corpus.reader.wordnet import WordNetError
 
 lemmatizer = WordNetLemmatizer()
 
 
-# Get a closer look at actors that consist of more than one word
+def conductUseCasesAnalysis(order):
+    cleanedActors = cleanActors(order["userStories"])
+    cleanedStories = identifyActorSynonyms(cleanedActors)
+    return getUseCasesFromStories(cleanedStories)
+
+
 def cleanActors(stories):
     cleaned = list()
 
@@ -138,12 +145,19 @@ def identifyActorSynonyms(stories):
 
 def getUseCasesFromStories(stories):
     actorsWithUseCases = list()
+    storiesOnly = list()
 
     # The list of parts of speech that will be omitted from the action sentence
     exclusionRule = ["PRP", "JJ", "JJR", "JJS", "RB", "RBR", "RBS", "PRP$", "DT", ",", "."]
 
     for story in stories:
-        tokens = word_tokenize("I " + story["action"])
+        # Pre-processing, remove any unnecessary punctuation
+        storyAction = removePunctuation(story["action"])
+
+        # Pre-processing, tokenizing words in a sentence
+        tokens = word_tokenize(storyAction)
+
+        # Part-of-speech tagging of each word in a sentence
         taggedWords = pos_tag(tokens)
 
         for i, word in enumerate(taggedWords):
@@ -182,19 +196,16 @@ def getUseCasesFromStories(stories):
         firstAction[0] = firstAction[0].capitalize()
 
         actorInList = False
+        finalStory = " ".join(firstAction)
+        storiesOnly.append(finalStory)
 
         for sublist in actorsWithUseCases:
             if sublist["actor"] == story["actor"]:
-                sublist["useCases"].append(" ".join(firstAction))
+                sublist["useCases"].append(finalStory)
                 actorInList = True
 
         if not actorInList:
-            actorsWithUseCases.append({"actor": story["actor"], "useCases": [" ".join(firstAction)]})
+            actorsWithUseCases.append({"actor": story["actor"], "useCases": [finalStory]})
 
-    return actorsWithUseCases
+    return {"actorsWithUseCases": actorsWithUseCases, "storiesOnly": storiesOnly}
 
-
-def analyseForUseCases(order):
-    cleanedActors = cleanActors(order["userStories"])
-    cleanedStories = identifyActorSynonyms(cleanedActors)
-    return getUseCasesFromStories(cleanedStories)
