@@ -78,8 +78,8 @@ def identifyActorSynonyms(stories):
 
         try:
             actorSynonyms = wordnet.synset(str(actor) + ".n.01")
-        except WordNetError as error:
-            print(error)
+        except WordNetError:
+            pass
 
         # Check if the object has an attribute lemmas. In case synset failed to identify the word
         # (e.g. when it's a compound noun or a neologism), the object won't have any lemmas and
@@ -106,8 +106,8 @@ def identifyActorSynonyms(stories):
 
             try:
                 nextActorSynonyms = wordnet.synset(str(nextActor) + ".n.01")
-            except WordNetError as error:
-                print(error)
+            except WordNetError:
+                pass
 
             if not hasattr(nextActorSynonyms, "lemmas"):
                 finalisedStories = finaliseActorStories(stories, actor, ids)
