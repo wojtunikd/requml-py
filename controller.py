@@ -13,21 +13,37 @@ db = cluster["ReqUML"]
 requests = db["requests"]
 
 
-def getNewUCParameter():
+def getNewParameter():
     # Inspired by https://pynative.com/python-generate-random-string/
     characters = string.ascii_letters + string.digits
     return ''.join(random.choice(characters) for i in range(12))
 
 
 def getAndVerifyUniqueUCParameter():
-    param = getNewUCParameter()
+    param = getNewParameter()
     duplicate = requests.find_one({"ucParam": param})
 
     if duplicate is not None:
         unique = False
 
         while not unique:
-            param = getNewUCParameter()
+            param = getNewParameter()
+            duplicate = requests.find_one({"ucParam": param})
+            if duplicate is None:
+                unique = True
+
+    return param
+
+
+def getAndVerifyUniqueClassParameter():
+    param = getNewParameter()
+    duplicate = requests.find_one({"ucParam": param})
+
+    if duplicate is not None:
+        unique = False
+
+        while not unique:
+            param = getNewParameter()
             duplicate = requests.find_one({"ucParam": param})
             if duplicate is None:
                 unique = True
@@ -44,8 +60,19 @@ def getOrder(orderId):
 
 def updateActorUseCases(orderId, useCases):
     ucParam = getAndVerifyUniqueUCParameter()
-    requests.update_one({"_id": ObjectId(orderId)}, {"$set": {"actorsWithUseCases": json.dumps(useCases), "completed": True, "ucParam": ucParam}})
+    requests.update_one({"_id": ObjectId(orderId)}, {"$set": {"actorsWithUseCases": json.dumps(useCases), "ucParam": ucParam}})
     return {"useCasesParam": ucParam}
+
+
+def updateClasses(orderId, classes):
+    classParam = getAndVerifyUniqueClassParameter()
+    requests.update_one({"_id": ObjectId(orderId)}, {"$set": {"classes": json.dumps(classes), "classParam": classParam}})
+    return {"classParam": classParam}
+
+
+def markOrderComplete(orderId):
+    requests.update_one({"_id": ObjectId(orderId)}, {"$set": {"completed": True}})
+    return
 
 
 def getOrderUseCases(orderId):
