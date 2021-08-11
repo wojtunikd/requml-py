@@ -4,7 +4,7 @@ import spacy
 def conductClassesAnalysis(sentences):
     potentialCandidates = identifyPotentialClassCandidates(sentences)
     refinedCandidates = processPotentialClassCandidates(potentialCandidates)
-    print(refinedCandidates)
+    return refinedCandidates
 
 
 def identifyPotentialClassCandidates(sentences):
@@ -82,4 +82,4 @@ def processPotentialClassCandidates(candidates):
         else:
             refinedCandidates.append(listOfDuplicates[0])
 
-    return refinedCandidates
+    return {"classes": refinedCandidates}
