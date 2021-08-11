@@ -5,7 +5,7 @@ from flask_restful import Api, Resource
 
 from bson.json_util import dumps
 
-from controller import getOrder, updateActorUseCases, getOrderUseCases, getAllOrders, deleteAllOrders, deleteAnOrder
+from controller import getOrder, updateActorUseCases, updateClasses, markOrderComplete, getOrderUseCases, getAllOrders, deleteAllOrders, deleteAnOrder
 from authentication import getAdmin, verifyPassword, generateJWT, decodeAndVerifyJWT
 
 from Analysis.use_cases import conductUseCasesAnalysis
@@ -48,9 +48,14 @@ def authenticateJWT(f):
 
 def conductOrderAnalysis(order, message):
     useCaseAnalysis = conductUseCasesAnalysis(order)
-    conductClassesAnalysis(useCaseAnalysis["storiesOnly"])
+    classesAnalysis = conductClassesAnalysis(useCaseAnalysis["storiesOnly"])
+
     ucUpdate = updateActorUseCases(order["_id"], useCaseAnalysis["actorsWithUseCases"])
-    return {"message": message, "ucParam": ucUpdate["useCasesParam"]}, 200
+    classUpdate = updateClasses(order["_id"], classesAnalysis["classes"])
+
+    markOrderComplete(order["_id"])
+
+    return {"message": message, "ucParam": ucUpdate["useCasesParam"], "classParam": classUpdate["classParam"]}, 200
 
 
 def initiateOrder(order):
