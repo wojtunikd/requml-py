@@ -1,10 +1,42 @@
 import spacy
+from nltk.corpus import wordnet
 
 
 def conductClassesAnalysis(sentences):
     potentialCandidates = identifyPotentialClassCandidates(sentences)
     refinedCandidates = processPotentialClassCandidates(potentialCandidates)
-    return refinedCandidates
+    candidatesWithoutDuplicates = analyseClassSimilarities(refinedCandidates)
+    return candidatesWithoutDuplicates
+
+
+def analyseClassSimilarities(allClasses):
+    classesWithoutDuplicates = list()
+
+    for i, potentialClassObject in enumerate(allClasses):
+        potentialClass = potentialClassObject["name"].split("_")
+
+        if len(potentialClass) < 2:
+            continue
+
+        for j, nextClassObject in enumerate(allClasses):
+            nextClass = nextClassObject["name"].split("_")
+
+            if i == j:
+                continue
+
+            if len(nextClass) > 1:
+                continue
+
+            for word in potentialClass:
+                try:
+                    similarityScore = wordnet.synset(str(word) + ".n.01").wup_similarity(wordnet.synset(str(nextClass[0]) + ".n.01"))
+                    if similarityScore == 1.0:
+                        print("SIMILAR: " + word + " in " + " ".join(potentialClass) + " to " + nextClass[0])
+                except Exception:
+                    pass
+
+    return {"classes": allClasses}
+    # return {"classes": classesWithoutDuplicates}
 
 
 def identifyPotentialClassCandidates(sentences):
@@ -22,6 +54,10 @@ def identifyPotentialClassCandidates(sentences):
 
         # Identifying noun chunks in each user story
         for chunk in doc.noun_chunks:
+            # RULE: First word in a story is always a VERB, therefore it is not a class
+            if chunk.text.split()[0] == sentence.split()[0]:
+                continue
+
             candidate = {}
             chunkWords = chunk.lemma_.split()
 
@@ -82,4 +118,4 @@ def processPotentialClassCandidates(candidates):
         else:
             refinedCandidates.append(listOfDuplicates[0])
 
-    return {"classes": refinedCandidates}
+    return refinedCandidates
