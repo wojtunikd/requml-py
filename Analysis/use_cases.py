@@ -1,8 +1,11 @@
-from Analysis.preprocessing import removePunctuation
+from Analysis.preprocessing import removePunctuation, getDomainSpecificWords, getPOSExclusion
 
 from nltk import WordNetLemmatizer, word_tokenize, pos_tag
 from nltk.corpus import wordnet
 from nltk.corpus.reader.wordnet import WordNetError
+
+import spacy
+from spacy import displacy
 
 lemmatizer = WordNetLemmatizer()
 
@@ -13,21 +16,25 @@ def conductUseCasesAnalysis(order):
     return getUseCasesFromStories(cleanedStories)
 
 
+def verifyPhraseDomainWords(phrase):
+    words = phrase.split()
+    exclusion = getDomainSpecificWords()
+
+    return any(element in words for element in exclusion)
+
+
 def cleanActors(stories):
+    nlp = spacy.load("en_core_web_sm")
     cleaned = list()
 
     for story in stories:
-        actor = story["role"].lower()
-        actorWords = actor.split()
+        actor = nlp(story["role"].lower())
+        actorName = list()
 
-        for word in actorWords:
-            if len(wordnet.synsets(str(word))) == 0:
-                continue
+        for chunk in actor.noun_chunks:
+            actorName.append(chunk.lemma_ if not verifyPhraseDomainWords(chunk.text) else chunk.text)
 
-        if len(actorWords) == 1:
-            actor = lemmatizer.lemmatize(actor)
-
-        cleaned.append({"id": story["_id"], "actor": actor, "action": story["action"]})
+        cleaned.append({"id": story["_id"], "actor": " ".join(actorName), "action": story["action"]})
 
     return cleaned
 
@@ -144,13 +151,64 @@ def identifyActorSynonyms(stories):
 
 
 def getUseCasesFromStories(stories):
+    nlp = spacy.load("en_core_web_sm")
+
     actorsWithUseCases = list()
     storiesOnly = list()
 
     # The list of parts of speech that will be omitted from the action sentence
-    exclusionRule = ["PRP", "JJ", "JJR", "JJS", "RB", "RBR", "RBS", "PRP$", "DT", ",", "."]
+    exclusionRule = getPOSExclusion()
 
-    for story in stories:
+    for index, story in enumerate(stories):
+        actionDoc = nlp(story["action"])
+        print("__________________________")
+        objects = list()
+        for t, token in enumerate(actionDoc):
+            currentObject = {"name": None, "attributes": list(), "methods": list(), "relationships": list()}
+            childObjects = [child for child in token.children]
+
+            if (token.dep_ == "dobj" and token.pos_ == "NOUN") or (token.dep_ == "pobj" and (token.pos_ == "ADP" or token.pos_ == "NOUN")):
+                currentObject["name"] = token.lemma_ if not verifyPhraseDomainWords(token.text) else token.text
+
+            if token.dep_ == "pobj":
+                if token.head.dep_ == "prep":
+                    # If the head of the preposition word is an object of a preposition or a direct object
+                    if token.head.head.dep_ == "pobj" or token.head.head.dep_ == "dobj":
+                        currentObject["relationships"] = [*currentObject["relationships"], token.head.head.lemma_ if not verifyPhraseDomainWords(token.head.head.text) else token.head.head.text]
+                    # If the word directly preceding the preposition is an object of a preposition or a direct object
+                    elif token.head.nbor(-1).dep_ == "pobj" or token.head.nbor(-1).dep_ == "dobj":
+                        currentObject["relationships"] = [*currentObject["relationships"], token.head.nbor(-1).lemma_ if not verifyPhraseDomainWords(token.head.nbor(-1).text) else token.head.nbor(-1).text]
+
+            if len(childObjects) > 0:
+                for childObject in childObjects:
+                    if childObject.dep_ == "amod" or childObject.dep_ == "compound":
+                        currentObject["attributes"] = [*currentObject["attributes"], childObject.text]
+
+            # Searching for potential methods/functions of the proposed candidate class
+            for sentenceToken in actionDoc:
+                if token.text in [child.text for child in sentenceToken.children]:
+                    if sentenceToken.pos_ == "VERB":
+                        methodFound = sentenceToken.lemma_.lower() + token.lemma_.capitalize() + "()"
+                        currentObject["methods"] = [*currentObject["methods"], methodFound]
+
+                        # Recognise conjugation of verbs that may form a method name
+                        wordConjuncts = [conjunctWord for conjunctWord in sentenceToken.conjuncts]
+                        for conjunct in wordConjuncts:
+                            if conjunct.pos_ == "VERB":
+                                conjMethodFound = conjunct.lemma_.lower() + token.lemma_.capitalize() + "()"
+                                currentObject["methods"] = [*currentObject["methods"], conjMethodFound]
+
+            if currentObject["name"] is not None:
+                objects.append(currentObject)
+
+            #print(token.text, token.dep_, token.head.text, token.head.pos_,[child for child in token.children])
+        #if index == 11:
+            #displacy.serve(doc, style="dep")
+
+        # TODO Merge/combine the classes together
+
+        #print(objects)
+
         # Pre-processing, remove any unnecessary punctuation
         storyAction = removePunctuation(story["action"])
 
@@ -176,6 +234,7 @@ def getUseCasesFromStories(stories):
 
             # Excluding words that are of a speech part included in the exclusion rule
             if word[1] in exclusionRule:
+                print(word[0])
                 taggedWords.pop(i)
 
         for i, word in enumerate(taggedWords):
