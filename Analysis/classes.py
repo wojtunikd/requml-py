@@ -1,83 +1,80 @@
 import spacy
 from nltk.corpus import wordnet
 
+from Analysis.preprocessing import getDomainSpecificWords, getDependencyPhrases
 
-def conductClassesAnalysis(sentences):
-    potentialCandidates = identifyPotentialClassCandidates(sentences)
+
+def conductClassesAnalysis(order):
+    potentialCandidates = identifyPotentialClassCandidates(order)
     refinedCandidates = processPotentialClassCandidates(potentialCandidates)
-    candidatesWithoutDuplicates = analyseClassSimilarities(refinedCandidates)
-    return candidatesWithoutDuplicates
+    potentialDuplicates = analyseClassSimilarities(refinedCandidates)
+    return {"classes": refinedCandidates, "duplicates": potentialDuplicates}
 
 
-def analyseClassSimilarities(allClasses):
-    classesWithoutDuplicates = list()
+def verifyPhraseDomainWords(phrase):
+    words = phrase.split()
+    exclusion = getDomainSpecificWords()
 
-    for i, potentialClassObject in enumerate(allClasses):
-        potentialClass = potentialClassObject["name"].split("_")
-
-        if len(potentialClass) < 2:
-            continue
-
-        for j, nextClassObject in enumerate(allClasses):
-            nextClass = nextClassObject["name"].split("_")
-
-            if i == j:
-                continue
-
-            if len(nextClass) > 1:
-                continue
-
-            for word in potentialClass:
-                try:
-                    similarityScore = wordnet.synset(str(word) + ".n.01").wup_similarity(wordnet.synset(str(nextClass[0]) + ".n.01"))
-                    if similarityScore == 1.0:
-                        print("SIMILAR: " + word + " in " + " ".join(potentialClass) + " to " + nextClass[0])
-                except Exception:
-                    pass
-
-    return {"classes": allClasses}
-    # return {"classes": classesWithoutDuplicates}
+    return any(element in words for element in exclusion)
 
 
-def identifyPotentialClassCandidates(sentences):
+def identifyPotentialClassCandidates(order):
     nlp = spacy.load("en_core_web_sm")
+
     potentialClassCandidates = list()
+    dependency = getDependencyPhrases()
+    sentences = order["userStories"]
 
-    for sentence in sentences:
-        namedEntities = list()
+    for index, story in enumerate(sentences):
+        actionDoc = nlp(story["action"])
+        sentenceClasses = list()
 
-        doc = nlp(sentence)
+        for token in actionDoc:
+            currentObject = {"name": None, "attributes": {"category": list(), "quality": list()}, "methods": list(), "relationships": list()}
+            childObjects = [child for child in token.children]
 
-        # Checking for named entities in a user story and preparing an exclusion list
-        for namedEntity in doc.ents:
-            namedEntities.append(*namedEntity.lemma_.split())
+            if (token.dep_ == dependency["DIRECT_OBJECT"] and token.pos_ == "NOUN") or (token.dep_ == dependency["PREPOSITIONAL_OBJECT"] and (token.pos_ == "ADP" or token.pos_ == "NOUN")):
+                currentObject["name"] = token.lemma_.capitalize() if not verifyPhraseDomainWords(token.text) else token.text.capitalize()
 
-        # Identifying noun chunks in each user story
-        for chunk in doc.noun_chunks:
-            # RULE: First word in a story is always a VERB, therefore it is not a class
-            if chunk.text.split()[0] == sentence.split()[0]:
-                continue
+            if token.dep_ == dependency["PREPOSITIONAL_OBJECT"]:
+                if token.head.dep_ == dependency["PREPOSITION"]:
 
-            candidate = {}
-            chunkWords = chunk.lemma_.split()
+                    # If the head of the preposition word is an object of a preposition or a direct object
+                    if token.head.head.dep_ == dependency["PREPOSITIONAL_OBJECT"] or token.head.head.dep_ == dependency["DIRECT_OBJECT"]:
+                        currentObject["relationships"] = [*currentObject["relationships"], token.head.head.lemma_.capitalize() if not verifyPhraseDomainWords(token.head.head.text) else token.head.head.text.capitalize()]
 
-            # Excluding any named entities from the list of words in the noun chunk to construct a general class name
-            wordsExcludingNE = [word for word in chunkWords if word not in namedEntities]
+                    # If the word directly preceding the preposition is an object of a preposition or a direct object
+                    elif token.head.nbor(-1).dep_ == dependency["PREPOSITIONAL_OBJECT"] or token.head.nbor(-1).dep_ == dependency["DIRECT_OBJECT"]:
+                        currentObject["relationships"] = [*currentObject["relationships"], token.head.nbor(-1).lemma_.capitalize() if not verifyPhraseDomainWords(token.head.nbor(-1).text) else token.head.nbor(-1).text.capitalize()]
 
-            if len(wordsExcludingNE) < 1:
-                continue
+            if len(childObjects) > 0:
+                for childObject in childObjects:
+                    if childObject.dep_ == dependency["ADJ_MODIFIER"] or childObject.dep_ == dependency["COMPOUND"]:
 
-            headWordPOS = nlp(chunk.root.head.text)[0].pos_
+                        if childObject.pos_ == "NOUN":
+                            currentObject["attributes"]["category"] = [*currentObject["attributes"]["category"], childObject.text]
 
-            # Using the dependency parsing within the user story, identifying potential methods/functions for each candidate class
-            if headWordPOS == "VERB":
-                rootChunk = "".join(list(map(lambda word: word.capitalize(), wordsExcludingNE)))
-                proposedFunction = chunk.root.head.lemma_.lower() + rootChunk + "()"
-                candidate["methods"] = [proposedFunction]
+                        elif childObject.pos_ == "ADJ":
+                            currentObject["attributes"]["quality"] = [*currentObject["attributes"]["quality"], childObject.text]
 
-            candidate["name"] = "_".join(list(map(lambda word: word.capitalize(), wordsExcludingNE)))
+            # Searching for potential methods/functions of the proposed candidate class
+            for sentenceToken in actionDoc:
+                if token.text in [child.text for child in sentenceToken.children]:
+                    if sentenceToken.pos_ == "VERB":
+                        methodFound = sentenceToken.lemma_.lower() + token.lemma_.capitalize() + "()"
+                        currentObject["methods"] = [*currentObject["methods"], methodFound]
 
-            potentialClassCandidates.append(candidate)
+                        # Recognise conjugation of verbs that may form a method name
+                        wordConjuncts = [conjunctWord for conjunctWord in sentenceToken.conjuncts]
+                        for conjunct in wordConjuncts:
+                            if conjunct.pos_ == "VERB":
+                                conjMethodFound = conjunct.lemma_.lower() + token.lemma_.capitalize() + "()"
+                                currentObject["methods"] = [*currentObject["methods"], conjMethodFound]
+
+            if currentObject["name"] is not None:
+                sentenceClasses.append(currentObject)
+
+        potentialClassCandidates = [*potentialClassCandidates, *sentenceClasses]
 
     return potentialClassCandidates
 
@@ -104,8 +101,8 @@ def processPotentialClassCandidates(candidates):
 
             mergedCandidate = listOfDuplicates[0]
 
-            # Copying potential class methods to merge duplicates, if the method name is unique
             for duplicate in listOfDuplicates:
+                # Move all unique methods from the duplicate class to the refined class
                 if "methods" in duplicate:
                     for method in duplicate["methods"]:
                         if "methods" in mergedCandidate:
@@ -114,8 +111,67 @@ def processPotentialClassCandidates(candidates):
                         else:
                             mergedCandidate["methods"] = [method]
 
+                # Move all unique relationships from the duplicate class to the refined class
+                if "relationships" in duplicate:
+                    for relationship in duplicate["relationships"]:
+                        if "relationships" in mergedCandidate:
+                            if relationship not in mergedCandidate["relationships"]:
+                                mergedCandidate["relationships"] = [*mergedCandidate["relationships"], relationship]
+                        else:
+                            mergedCandidate["relationships"] = [relationship]
+
+                if "attributes" in duplicate:
+                    # Move all unique values of the attribute category from the duplicate class to the refined class
+                    if "category" in duplicate["attributes"]:
+                        for category in duplicate["attributes"]["category"]:
+                            if "attributes" in mergedCandidate:
+                                if "category" in mergedCandidate["attributes"]:
+                                    if category not in mergedCandidate["attributes"]["category"]:
+                                        mergedCandidate["attributes"]["category"] = [*mergedCandidate["attributes"]["category"], category]
+                                else:
+                                    mergedCandidate["attributes"]["category"] = [category]
+                            else:
+                                mergedCandidate["attributes"] = {}
+                                mergedCandidate["attributes"]["category"] = [category]
+
+                    # Move all unique values of the attribute quality from the duplicate class to the refined class
+                    if "quality" in duplicate["attributes"]:
+                        for quality in duplicate["attributes"]["quality"]:
+                            if "attributes" in mergedCandidate:
+                                if "quality" in mergedCandidate["attributes"]:
+                                    if quality not in mergedCandidate["attributes"]["quality"]:
+                                        mergedCandidate["attributes"]["quality"] = [*mergedCandidate["attributes"]["quality"], quality]
+                                else:
+                                    mergedCandidate["attributes"]["quality"] = [quality]
+                            else:
+                                mergedCandidate["attributes"] = {}
+                                mergedCandidate["attributes"]["quality"] = [quality]
+
             refinedCandidates.append(mergedCandidate)
         else:
             refinedCandidates.append(listOfDuplicates[0])
 
     return refinedCandidates
+
+
+def analyseClassSimilarities(allClasses):
+    potentialDuplicatePairs = list()
+
+    for i, potentialClassObject in enumerate(allClasses):
+        potentialClass = potentialClassObject["name"]
+
+        for j in range(i, len(allClasses)):
+            nextClass = allClasses[j]["name"]
+
+            if i == j:
+                continue
+
+            try:
+                similarityScore = wordnet.synset(str(potentialClass) + ".n.01").wup_similarity(wordnet.synset(str(nextClass) + ".n.01"))
+
+                if similarityScore == 1.0:
+                    potentialDuplicatePairs.append([potentialClass, nextClass])
+            except:
+                pass
+
+    return potentialDuplicatePairs

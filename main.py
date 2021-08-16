@@ -5,11 +5,10 @@ from flask_restful import Api, Resource
 
 from bson.json_util import dumps
 
-from controller import getOrder, updateActorUseCases, updateClasses, markOrderComplete, getOrderUseCases, getAllOrders, deleteAllOrders, deleteAnOrder
+from controller import getOrder, markOrderComplete, getOrderUseCases, getAllOrders, deleteAllOrders, deleteAnOrder
 from authentication import getAdmin, verifyPassword, generateJWT, decodeAndVerifyJWT
 
-from Analysis.use_cases import conductUseCasesAnalysis
-from Analysis.classes import conductClassesAnalysis
+from Analysis.analysis import conductFullAnalysis
 
 load_dotenv()
 
@@ -46,16 +45,11 @@ def authenticateJWT(f):
     return decorator
 
 
-def conductOrderAnalysis(order, message):
-    useCaseAnalysis = conductUseCasesAnalysis(order)
-    classesAnalysis = conductClassesAnalysis(useCaseAnalysis["storiesOnly"])
-
-    ucUpdate = updateActorUseCases(order["_id"], useCaseAnalysis["actorsWithUseCases"])
-    classUpdate = updateClasses(order["_id"], classesAnalysis["classes"])
-
+def conductOrderAnalysis(order):
+    analysis = conductFullAnalysis(order)
     markOrderComplete(order["_id"])
 
-    return {"message": message, "ucParam": ucUpdate["useCasesParam"], "classParam": classUpdate["classParam"]}, 200
+    return analysis, 200
 
 
 def initiateOrder(order):
@@ -64,14 +58,14 @@ def initiateOrder(order):
     elif order["completed"]:
         return {"message": "The order has already been analysed"}, 403
     else:
-        return conductOrderAnalysis(order, "Analysis complete.")
+        return conductOrderAnalysis(order)
 
 
 def rerunAnalysis(order):
     if order is None:
         return {"message": "The order has not been found"}, 404
     else:
-        return conductOrderAnalysis(order, "Analysis has been rerun successfully.")
+        return conductOrderAnalysis(order)
 
 
 class InitiateAnalysis(Resource):
@@ -148,11 +142,11 @@ class Login(Resource):
             return {"message": "Authentication failed"}, 401
 
 
-@app.errorhandler(Exception)
+"""@app.errorhandler(Exception)
 def serverError(error):
     print(error)
     return {"message": "Error while processing your request. Please try again!"}, 500
-
+"""
 
 api.add_resource(InitiateAnalysis, "/api/initiate/<string:orderId>")
 api.add_resource(OrderUseCases, "/api/uc/<string:orderId>")
@@ -165,4 +159,4 @@ api.add_resource(Login, "/api/login")
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(port=5555, debug=True)
