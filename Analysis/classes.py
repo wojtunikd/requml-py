@@ -30,7 +30,6 @@ def identifyPotentialClassCandidates(order):
         sentenceClasses = list()
 
         for tokenIdx, token in enumerate(actionDoc):
-            print(token.text, token.pos_.upper(), token.dep_.upper(), [child for child in token.children])
 
             currentObject = {"name": None, "attributes": {"category": list(), "quality": list()}, "methods": list(), "relationships": list()}
             childObjects = [child for child in token.children]
