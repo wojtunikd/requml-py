@@ -12,7 +12,7 @@ from pymongo import MongoClient
 def connectMongoAndGetCollection():
     cluster = MongoClient(os.getenv("MONGODB_CONNECTION"))
     db = cluster["ReqUML"]
-    return db["requests"]
+    return db["orders"]
 
 
 requests = connectMongoAndGetCollection()
