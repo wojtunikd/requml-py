@@ -7,6 +7,7 @@ from nltk.corpus.reader.wordnet import WordNetError
 import spacy
 import copy
 
+
 lemmatizer = WordNetLemmatizer()
 
 
@@ -235,7 +236,7 @@ def refineActorUseCases(actorsWithUseCases):
                 elif token.dep_ == dependency["DIRECT_OBJECT"] and (token.head.dep_ == dependency["ROOT"] or token.head.dep_ == dependency["CONJUGATION"]):
                     refinedActorUseCases[actorIdx]["useCases"][storyIdx]["core"].append(tokenIdx)
 
-                elif token.dep_ == dependency["DIRECT_OBJECT"] and (token.head.dep_ == dependency["CLAUSAL_COMPLEMENT"] and token.head.head.dep_ == dependency["ROOT"]):
+                elif token.dep_ == dependency["DIRECT_OBJECT"] and token.head.dep_ == dependency["CLAUSAL_COMPLEMENT"] and token.head.head.dep_ == dependency["ROOT"] and token.pos_ != "DET":
                     refinedActorUseCases[actorIdx]["useCases"][storyIdx]["core"].append(tokenIdx)
 
     return refinedActorUseCases

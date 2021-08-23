@@ -8,9 +8,14 @@ from bson.errors import InvalidId
 
 from pymongo import MongoClient
 
-cluster = MongoClient(os.getenv("MONGODB_CONNECTION"))
-db = cluster["ReqUML"]
-requests = db["requests"]
+
+def connectMongoAndGetCollection():
+    cluster = MongoClient(os.getenv("MONGODB_CONNECTION"))
+    db = cluster["ReqUML"]
+    return db["requests"]
+
+
+requests = connectMongoAndGetCollection()
 
 
 def getNewParameter():

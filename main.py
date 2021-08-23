@@ -142,11 +142,11 @@ class Login(Resource):
             return {"message": "Authentication failed"}, 401
 
 
-"""@app.errorhandler(Exception)
+@app.errorhandler(Exception)
 def serverError(error):
     print(error)
     return {"message": "Error while processing your request. Please try again!"}, 500
-"""
+
 
 api.add_resource(InitiateAnalysis, "/api/initiate/<string:orderId>")
 api.add_resource(OrderUseCases, "/api/uc/<string:orderId>")

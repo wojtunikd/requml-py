@@ -29,22 +29,24 @@ def identifyPotentialClassCandidates(order):
         actionDoc = nlp(story["action"])
         sentenceClasses = list()
 
-        for token in actionDoc:
+        for tokenIdx, token in enumerate(actionDoc):
+            print(token.text, token.pos_.upper(), token.dep_.upper(), [child for child in token.children])
+
             currentObject = {"name": None, "attributes": {"category": list(), "quality": list()}, "methods": list(), "relationships": list()}
             childObjects = [child for child in token.children]
 
-            if (token.dep_ == dependency["DIRECT_OBJECT"] and token.pos_ == "NOUN") or (token.dep_ == dependency["PREPOSITIONAL_OBJECT"] and (token.pos_ == "ADP" or token.pos_ == "NOUN")):
+            if tokenIdx != 0 and ((token.dep_ == dependency["DIRECT_OBJECT"] and token.pos_ == "NOUN") or (token.dep_ == dependency["PREPOSITIONAL_OBJECT"] and (token.pos_ == "ADP" or token.pos_ == "NOUN"))):
                 currentObject["name"] = token.lemma_.capitalize() if not verifyPhraseDomainWords(token.text) else token.text.capitalize()
 
-            if token.dep_ == dependency["PREPOSITIONAL_OBJECT"]:
+            if tokenIdx != 0 and token.dep_ == dependency["PREPOSITIONAL_OBJECT"]:
                 if token.head.dep_ == dependency["PREPOSITION"]:
 
                     # If the head of the preposition word is an object of a preposition or a direct object
-                    if token.head.head.dep_ == dependency["PREPOSITIONAL_OBJECT"] or token.head.head.dep_ == dependency["DIRECT_OBJECT"]:
+                    if (token.head.head.dep_ == dependency["PREPOSITIONAL_OBJECT"] and (token.head.head.pos_ == "ADP" or token.head.head.pos_ == "NOUN")) or (token.head.head.dep_ == dependency["DIRECT_OBJECT"] and token.head.head.pos_ == "NOUN"):
                         currentObject["relationships"] = [*currentObject["relationships"], token.head.head.lemma_.capitalize() if not verifyPhraseDomainWords(token.head.head.text) else token.head.head.text.capitalize()]
 
                     # If the word directly preceding the preposition is an object of a preposition or a direct object
-                    elif token.head.nbor(-1).dep_ == dependency["PREPOSITIONAL_OBJECT"] or token.head.nbor(-1).dep_ == dependency["DIRECT_OBJECT"]:
+                    elif (token.head.nbor(-1).dep_ == dependency["PREPOSITIONAL_OBJECT"] and (token.head.nbor(-1).pos_ == "ADP" or token.head.nbor(-1).pos_ == "NOUN")) or (token.head.nbor(-1).dep_ == dependency["DIRECT_OBJECT"] and token.head.nbor(-1).pos_ == "NOUN"):
                         currentObject["relationships"] = [*currentObject["relationships"], token.head.nbor(-1).lemma_.capitalize() if not verifyPhraseDomainWords(token.head.nbor(-1).text) else token.head.nbor(-1).text.capitalize()]
 
             if len(childObjects) > 0:
@@ -67,7 +69,7 @@ def identifyPotentialClassCandidates(order):
                         # Recognise conjugation of verbs that may form a method name
                         wordConjuncts = [conjunctWord for conjunctWord in sentenceToken.conjuncts]
                         for conjunct in wordConjuncts:
-                            if conjunct.pos_ == "VERB":
+                            if conjunct.pos_ == "VERB" or conjunct.dep_ == "ROOT":
                                 conjMethodFound = conjunct.lemma_.lower() + token.lemma_.capitalize() + "()"
                                 currentObject["methods"] = [*currentObject["methods"], conjMethodFound]
 
