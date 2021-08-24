@@ -175,7 +175,7 @@ def getUseCasesFromStories(stories):
         for i, word in enumerate(taggedWords):
 
             # Excluding words that are of a speech part included in the exclusion rule
-            if word[1] in exclusionRule and word[0] != "not":
+            if word[1] in exclusionRule and word[0] != "not" and i != 0:
                 taggedWords.pop(i)
 
         firstAction = list()
