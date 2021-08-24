@@ -1,4 +1,4 @@
-from Analysis.preprocessing import removePunctuation, getDomainSpecificWords, getPOSExclusion, getDependencyPhrases
+from Analysis.preprocessing import removePunctuation, getDomainSpecificWords, getPOSExclusion, getDependencyPhrases, recogniseAndRemoveBenefit
 
 from nltk import WordNetLemmatizer, word_tokenize, pos_tag
 from nltk.corpus import wordnet
@@ -7,7 +7,7 @@ from nltk.corpus.reader.wordnet import WordNetError
 import spacy
 import copy
 
-
+nlp = spacy.load("en_core_web_sm")
 lemmatizer = WordNetLemmatizer()
 
 
@@ -26,15 +26,18 @@ def conductUseCasesAnalysis(order):
 
 
 def cleanActors(stories):
-    nlp = spacy.load("en_core_web_sm")
     cleaned = list()
 
     for story in stories:
         actor = nlp(story["role"].lower())
         actorName = list()
 
-        for chunk in actor.noun_chunks:
-            actorName.append(chunk.lemma_ if not verifyPhraseDomainWords(chunk.text) else chunk.text)
+        # In case no obvious nouns are recognised or if some nouns are misclassified (e.g. a cook/to cook)
+        if len(actor.noun_chunks) == 0:
+            actorName.append(story["role"].lower())
+        else:
+            for chunk in actor.noun_chunks:
+                actorName.append(chunk.lemma_ if not verifyPhraseDomainWords(chunk.text) else chunk.text)
 
         cleaned.append({"id": story["_id"], "actor": " ".join(actorName), "action": story["action"]})
 
@@ -160,39 +163,20 @@ def getUseCasesFromStories(stories):
         # Pre-processing, remove any unnecessary punctuation
         storyAction = removePunctuation(story["action"])
 
+        # Pre-processing, remove benefit from sentence
+        storyNoBenefit = recogniseAndRemoveBenefit(nlp, storyAction)
+
         # Pre-processing, tokenizing words in a sentence
-        tokens = word_tokenize(storyAction)
+        tokens = word_tokenize(storyNoBenefit)
 
         # Part-of-speech tagging of each word in a sentence
         taggedWords = pos_tag(tokens)
 
         for i, word in enumerate(taggedWords):
-            if word[1] == "IN":
-                try:
-                    nextWord = taggedWords[i+1]
-                    # This is to recognise parts of sentence that describe the effect or benefit instead of
-                    # an actual action and start with structures like "so that". These parts will be omitted.
-                    if nextWord[1] == "IN":
-                        taggedWords = taggedWords[:i]
-                        if word[1] in exclusionRule and word[0] != "not":
-                            taggedWords.pop(i)
-                        break
-                except IndexError:
-                    print("No more proceeding words")
 
             # Excluding words that are of a speech part included in the exclusion rule
             if word[1] in exclusionRule and word[0] != "not":
                 taggedWords.pop(i)
-
-        for i, word in enumerate(taggedWords):
-            if word[1] == "IN":
-                if (i + 1) < len(taggedWords):
-                    nextWord = taggedWords[i + 1]
-                    if nextWord[1] == "IN":
-                        taggedWords = taggedWords[:i]
-                        break
-
-        # TODO: Consider compound sentences with 'and'
 
         firstAction = list()
 
@@ -217,7 +201,6 @@ def getUseCasesFromStories(stories):
 
 
 def refineActorUseCases(actorsWithUseCases):
-    nlp = spacy.load("en_core_web_sm")
     refinedActorUseCases = copy.deepcopy(actorsWithUseCases)["actorsWithUseCases"]
 
     dependency = getDependencyPhrases()

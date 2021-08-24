@@ -1,7 +1,9 @@
 import spacy
 from nltk.corpus import wordnet
 
-from Analysis.preprocessing import getDomainSpecificWords, getDependencyPhrases
+from Analysis.preprocessing import getDomainSpecificWords, getDependencyPhrases, recogniseAndRemoveBenefit
+
+nlp = spacy.load("en_core_web_sm")
 
 
 def conductClassesAnalysis(order):
@@ -19,14 +21,14 @@ def verifyPhraseDomainWords(phrase):
 
 
 def identifyPotentialClassCandidates(order):
-    nlp = spacy.load("en_core_web_sm")
-
     potentialClassCandidates = list()
     dependency = getDependencyPhrases()
     sentences = order["userStories"]
 
     for index, story in enumerate(sentences):
-        actionDoc = nlp(story["action"])
+        actionNoBenefits = recogniseAndRemoveBenefit(nlp, story["action"])
+
+        actionDoc = nlp(actionNoBenefits)
         sentenceClasses = list()
 
         for tokenIdx, token in enumerate(actionDoc):

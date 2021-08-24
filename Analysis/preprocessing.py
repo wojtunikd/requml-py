@@ -1,4 +1,5 @@
 import string
+import spacy
 
 
 def removePunctuation(sentence):
@@ -11,6 +12,18 @@ def getDomainSpecificWords():
 
 def getPOSExclusion():
     return ["JJR", "JJS", "PRP$", "DT", "RB"]
+
+
+def recogniseAndRemoveBenefit(nlp, story):
+    taggedStory = nlp(story)
+
+    for i, word in enumerate(taggedStory):
+        if word.pos_ == "SCONJ":
+            if word.nbor(1).pos_ == "SCONJ":
+                reducedStory = " ".join([storyWord.text for storyWord in taggedStory[:i]])
+                return reducedStory
+
+    return story
 
 
 def getDependencyPhrases():
