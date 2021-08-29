@@ -26,9 +26,9 @@ def identifyPotentialClassCandidates(order):
     sentences = order["userStories"]
 
     for index, story in enumerate(sentences):
-        actionNoBenefits = recogniseAndRemoveBenefit(nlp, story["action"])
+        #actionNoBenefits = recogniseAndRemoveBenefit(nlp, story["action"])
 
-        actionDoc = nlp(actionNoBenefits)
+        actionDoc = nlp(story["action"])
         sentenceClasses = list()
 
         for tokenIdx, token in enumerate(actionDoc):
