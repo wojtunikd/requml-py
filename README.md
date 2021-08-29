@@ -90,5 +90,7 @@ Folder *Analysis* contains files with functions required for the NLP analysis of
  The server is deployed on Heroku and can be accessed via URL:
  > https://requml-py.herokuapp.com
 
+ **Important**: Please note that for the purpose of the individual project, the application was deployed to a free-tier dyno. This means that the resources of the application in the cloud are currently limited, and the RAM allowance may be exceeded after a few analyses. Therefore, if the source code is available, it is better to run the application on a local machine. 
+
  The API can be used via Postman.
 

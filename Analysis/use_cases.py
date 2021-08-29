@@ -164,10 +164,10 @@ def getUseCasesFromStories(stories):
         storyAction = removePunctuation(story["action"])
 
         # Pre-processing, remove benefit from sentence
-        #storyNoBenefit = recogniseAndRemoveBenefit(nlp, storyAction)
+        storyNoBenefit = recogniseAndRemoveBenefit(nlp, storyAction)
 
         # Pre-processing, tokenizing words in a sentence
-        tokens = word_tokenize(storyAction)
+        tokens = word_tokenize(storyNoBenefit)
 
         # Part-of-speech tagging of each word in a sentence
         taggedWords = pos_tag(tokens)
