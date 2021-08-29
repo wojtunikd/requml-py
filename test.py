@@ -20,5 +20,5 @@ class UseCasesTests(unittest.TestCase):
         self.assertEqual(getAllActors(data), ["actor_1", "actor_2"])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
