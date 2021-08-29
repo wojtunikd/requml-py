@@ -33,7 +33,7 @@ def cleanActors(stories):
         actorName = list()
 
         # In case no obvious nouns are recognised or if some nouns are misclassified (e.g. a cook/to cook)
-        if len(actor.noun_chunks) == 0:
+        if len([noun for noun in actor.noun_chunks]) == 0:
             actorName.append(story["role"].lower())
         else:
             for chunk in actor.noun_chunks:
