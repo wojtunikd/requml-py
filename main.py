@@ -16,6 +16,8 @@ app = Flask(__name__)
 api = Api(app)
 
 
+# Decorator implementation for JWT follows tutorial by Michael Aboagye
+# https://geekflare.com/securing-flask-api-with-jwt/
 def authenticateJWT(f):
     @wraps(f)
     def decorator(*args, **kwargs):
@@ -87,7 +89,7 @@ class OrderUseCases(Resource):
 
         return Response(
             dumps(useCases, indent=2),
-            mimetype='application/json'
+            mimetype="application/json"
         )
 
 
@@ -101,7 +103,7 @@ class OrderDetails(Resource):
 
         return Response(
             dumps(order, indent=2),
-            mimetype='application/json'
+            mimetype="application/json"
         )
 
 
@@ -111,7 +113,7 @@ class AllOrders(Resource):
         orders = getAllOrders()
         return Response(
             dumps(orders, indent=2),
-            mimetype='application/json'
+            mimetype="application/json"
         )
 
 
